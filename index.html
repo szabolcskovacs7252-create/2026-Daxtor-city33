@@ -438,7 +438,231 @@ function tick() {
 render();
 tick();
 setInterval(tick, 1000);
-</script>
+</script> 
+/* 0217 - REJTÉLY 2.0 KIEGÉSZÍTŐ */
+
+// Új, nehezebb kvízkérdések
+questions.splice(0, questions.length,
+  {
+    q: "Mi a következő szám? 2, 6, 12, 20, ?",
+    a: ["28", "30", "32"],
+    correct: 1
+  },
+  {
+    q: "Melyik szám hiányzik? 0, 2, 1, 7, ?",
+    a: ["4", "3", "9"],
+    correct: 1
+  },
+  {
+    q: "Mennyi 17 × 12?",
+    a: ["204", "214", "194"],
+    correct: 0
+  },
+  {
+    q: "Melyik szám binárisan a 10?",
+    a: ["1010", "1001", "1110"],
+    correct: 0
+  },
+  {
+    q: "Mennyi másodperc két óra?",
+    a: ["3600", "7200", "12000"],
+    correct: 1
+  },
+  {
+    q: "Melyik szó illik a sorba? Kód, kulcs, ?",
+    a: ["Zár", "Felhő", "Tükör"],
+    correct: 0
+  },
+  {
+    q: "Mi a játék titkos számsora?",
+    a: ["0217", "2017", "0712"],
+    correct: 0
+  }
+);
+
+// Animált háttér
+const extraStyle = document.createElement("style");
+extraStyle.textContent = `
+  body::before {
+    animation: mysteryPulse 7s infinite alternate;
+  }
+
+  @keyframes mysteryPulse {
+    from { opacity: 0.35; }
+    to { opacity: 1; }
+  }
+
+  h1 {
+    animation: mysteryGlow 3s infinite alternate;
+  }
+
+  @keyframes mysteryGlow {
+    from { text-shadow: 0 0 8px #800000; }
+    to { text-shadow: 0 0 35px #ff2020; }
+  }
+
+  section {
+    animation: mysteryFade 0.7s ease;
+  }
+
+  @keyframes mysteryFade {
+    from {
+      opacity: 0;
+      transform: translateY(15px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  #testPanel {
+    margin-top: 30px;
+    padding: 15px;
+    border: 1px solid #622;
+    border-radius: 12px;
+    background: #120909;
+  }
+`;
+document.head.appendChild(extraStyle);
+
+// Hanghatás - saját generált hang
+let audioContext;
+let soundEnabled = false;
+
+function playMysterySound() {
+  if (!soundEnabled) return;
+
+  try {
+    audioContext ??= new (
+      window.AudioContext || window.webkitAudioContext
+    )();
+
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(
+      220, audioContext.currentTime
+    );
+    oscillator.frequency.exponentialRampToValueAtTime(
+      110, audioContext.currentTime + 0.4
+    );
+
+    gain.gain.setValueAtTime(
+      0.06, audioContext.currentTime
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001, audioContext.currentTime + 0.4
+    );
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.4);
+  } catch (e) {
+    console.log("Hang nem támogatott.");
+  }
+}
+
+// Hang kapcsoló
+const soundButton = document.createElement("button");
+soundButton.textContent = "🔇 Hang bekapcsolása";
+
+soundButton.onclick = () => {
+  soundEnabled = !soundEnabled;
+  soundButton.textContent = soundEnabled
+    ? "🔊 Hang kikapcsolása"
+    : "🔇 Hang bekapcsolása";
+
+  playMysterySound();
+};
+
+document.querySelector("main").appendChild(soundButton);
+
+// Filmes bevezető, csak első alkalommal
+if (!sessionStorage.getItem("introSeen0217")) {
+  const intro = document.createElement("div");
+
+  intro.style.cssText = `
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    background:#050505;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:25px;
+    text-align:center;
+  `;
+
+  intro.innerHTML = `
+    <h1>0217</h1>
+    <h2>A REJTÉLY KEZDETE</h2>
+    <p>Egy titok. Hét kérdés. Három visszaszámláló.</p>
+    <p>Vajon sikerül megfejtened?</p>
+    <button id="introStart">JÁTÉK INDÍTÁSA</button>
+  `;
+
+  document.body.appendChild(intro);
+
+  document.getElementById("introStart").onclick = () => {
+    sessionStorage.setItem("introSeen0217", "yes");
+    playMysterySound();
+    intro.remove();
+  };
+}
+
+// Tesztelői panel
+const panel = document.createElement("div");
+panel.id = "testPanel";
+
+panel.innerHTML = `
+  <h3>🛠️ Tesztelői panel</h3>
+  <p class="small">
+    A fejezetek kipróbálásához.
+    Nem jelszóval védett adminfelület.
+  </p>
+  <button id="testQuiz">Kvíz teszt</button>
+  <button id="testHour">1 órás számláló</button>
+  <button id="testLetter">Boríték teszt</button>
+  <button id="testYear">365 napos számláló</button>
+  <button id="testReset">Játék újraindítása</button>
+`;
+
+document.querySelector("main").appendChild(panel);
+
+document.getElementById("testQuiz").onclick = () => {
+  state.questionIndex = 0;
+  setStage("quiz");
+  playMysterySound();
+};
+
+document.getElementById("testHour").onclick = () => {
+  state.secondEnd = Date.now() + ONE_HOUR;
+  setStage("second");
+  playMysterySound();
+};
+
+document.getElementById("testLetter").onclick = () => {
+  setStage("letter");
+  playMysterySound();
+};
+
+document.getElementById("testYear").onclick = () => {
+  state.finalEnd = Date.now() + YEAR;
+  setStage("final");
+  playMysterySound();
+};
+
+document.getElementById("testReset").onclick = () => {
+  if (confirm("Újraindítod a teljes játékot?")) {
+    restartGame();
+  }
+};
+
 
 </body>
 </html>
