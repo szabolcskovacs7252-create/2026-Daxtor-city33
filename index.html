@@ -1,1 +1,445 @@
 
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0217 | A Rejtély</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #080808;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle,
+    #390000 0%,
+    #080808 65%
+  );
+  z-index: -1;
+}
+
+.container {
+  width: 92%;
+  max-width: 650px;
+  padding: 30px 15px;
+}
+
+h1 {
+  color: #ff3030;
+  letter-spacing: 5px;
+  text-shadow: 0 0 20px #a00000;
+}
+
+h2 {
+  line-height: 1.5;
+}
+
+p {
+  color: #bbb;
+  line-height: 1.7;
+}
+
+.timer {
+  font-size: clamp(28px, 7vw, 48px);
+  font-weight: bold;
+  margin: 35px 0;
+  color: #ff3434;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px #a00000;
+}
+
+button {
+  background: #a40000;
+  color: white;
+  border: 1px solid #ff3434;
+  padding: 15px 25px;
+  margin: 8px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: .2s;
+}
+
+button:hover {
+  background: #e00000;
+  transform: scale(1.03);
+}
+
+input {
+  padding: 15px;
+  width: 90%;
+  max-width: 300px;
+  background: #151515;
+  border: 1px solid #a40000;
+  border-radius: 8px;
+  color: white;
+  text-align: center;
+  font-size: 17px;
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.answers button {
+  width: 100%;
+  margin: 0;
+}
+
+.envelope {
+  font-size: 90px;
+  cursor: pointer;
+  transition: .3s;
+  display: inline-block;
+  margin: 25px;
+}
+
+.envelope:hover {
+  transform: scale(1.15);
+}
+
+.hidden {
+  display: none;
+}
+
+.message {
+  background: #151010;
+  border: 1px solid #a40000;
+  border-radius: 12px;
+  padding: 25px;
+  margin: 20px 0;
+}
+
+.small {
+  font-size: 12px;
+  color: #777;
+}
+
+#error {
+  color: #ff5555;
+}
+</style>
+</head>
+
+<body>
+
+<main class="container">
+
+  <h1>0217</h1>
+  <p>INTERAKTÍV REJTÉLYJÁTÉK</p>
+
+  <section id="first">
+    <h2>Az első fejezet hamarosan megnyílik.</h2>
+    <p>Várd meg, amíg lejár a visszaszámláló.</p>
+    <div class="timer" id="timer1"></div>
+  </section>
+
+  <section id="quiz" class="hidden">
+    <h2 id="question"></h2>
+    <p id="progress"></p>
+    <div class="answers" id="answers"></div>
+    <p id="feedback"></p>
+  </section>
+
+  <section id="second" class="hidden">
+    <h2>A következő fejezet zárolva.</h2>
+    <p>A boríték egy óra múlva nyílik meg.</p>
+    <div class="timer" id="timer2"></div>
+  </section>
+
+  <section id="letter" class="hidden">
+    <h2>Megérkezett egy üzenet.</h2>
+    <div class="envelope" onclick="openLetter()">✉️</div>
+    <p>Kattints a borítékra!</p>
+
+    <div id="letterText" class="message hidden">
+      <h2>0217!</h2>
+      <p>
+        A szerverbe csak ennyit írj be:
+        <strong>0217!</strong>
+        és megtalálod, mi értelme.
+      </p>
+      <button onclick="startFinal()">
+        Tovább
+      </button>
+    </div>
+  </section>
+
+  <section id="final" class="hidden">
+    <h2>Az utolsó fejezet</h2>
+    <p>365 napos visszaszámláló</p>
+
+    <div class="timer" id="timer3"></div>
+
+    <p>Van egy titkos kódod?</p>
+    <input
+      type="text"
+      id="secretCode"
+      placeholder="Írd be a kódot"
+      autocomplete="off"
+    >
+
+    <br>
+    <button onclick="checkCode()">
+      Feloldás
+    </button>
+
+    <p id="error"></p>
+  </section>
+
+  <section id="finished" class="hidden">
+    <h1>0217</h1>
+    <h2>A REJTÉLY VÉGET ÉRT.</h2>
+    <p>Gratulálok! Eljutottál a történet végére.</p>
+    <button onclick="restartGame()">
+      Újrajátszás
+    </button>
+  </section>
+
+  <p class="small">
+    Ez egy kitalált, interaktív rejtélyjáték.
+  </p>
+
+</main>
+
+<script>
+// IDŐTARTAMOK
+const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+const ONE_HOUR = 60 * 60 * 1000;
+const YEAR = 365 * 24 * 60 * 60 * 1000;
+
+// KÉRDÉSEK
+const questions = [
+  {
+    q: "Mi nyitja meg a következő fejezetet?",
+    a: ["Az idő", "Egy térkép", "Egy kulcs"],
+    correct: 0
+  },
+  {
+    q: "Hány számjegyből áll a 0217?",
+    a: ["3", "4", "5"],
+    correct: 1
+  },
+  {
+    q: "Melyik szám következik? 2, 4, 8, 16...",
+    a: ["24", "32", "18"],
+    correct: 1
+  },
+  {
+    q: "Melyik szó jelent titkot?",
+    a: ["Rejtély", "Naptár", "Ablak"],
+    correct: 0
+  },
+  {
+    q: "Mennyi perc egy óra?",
+    a: ["100", "30", "60"],
+    correct: 2
+  },
+  {
+    q: "Mi található egy lezárt borítékban?",
+    a: ["Üzenet", "Ajtó", "Óra"],
+    correct: 0
+  },
+  {
+    q: "Készen állsz a következő fejezetre?",
+    a: ["Nem", "Igen", "Talán"],
+    correct: 1
+  }
+];
+
+const STORAGE_KEY = "mystery0217_v1";
+
+function initialState() {
+  return {
+    stage: "first",
+    firstEnd: Date.now() + TWO_DAYS,
+    secondEnd: null,
+    finalEnd: null,
+    questionIndex: 0
+  };
+}
+
+let state;
+
+try {
+  state = JSON.parse(localStorage.getItem(STORAGE_KEY));
+} catch (e) {
+  state = null;
+}
+
+if (!state || !state.stage || !state.firstEnd) {
+  state = initialState();
+  save();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function show(stage) {
+  const sections = [
+    "first", "quiz", "second",
+    "letter", "final", "finished"
+  ];
+
+  sections.forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
+
+  document.getElementById(stage).classList.remove("hidden");
+}
+
+function formatTime(ms) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  return [days, hours, minutes, secs]
+    .map(n => String(n).padStart(2, "0"))
+    .join(" : ");
+}
+
+function setStage(stage) {
+  state.stage = stage;
+  save();
+  render();
+}
+
+function render() {
+  show(state.stage);
+
+  if (state.stage === "quiz") {
+    renderQuestion();
+  }
+}
+
+function renderQuestion() {
+  if (state.questionIndex >= questions.length) {
+    state.secondEnd = Date.now() + ONE_HOUR;
+    setStage("second");
+    return;
+  }
+
+  const item = questions[state.questionIndex];
+
+  document.getElementById("question").textContent = item.q;
+  document.getElementById("progress").textContent =
+    "Kérdés " + (state.questionIndex + 1) +
+    " / " + questions.length;
+
+  document.getElementById("feedback").textContent = "";
+
+  const answers = document.getElementById("answers");
+  answers.innerHTML = "";
+
+  item.a.forEach((answer, index) => {
+    const button = document.createElement("button");
+    button.textContent = answer;
+
+    button.onclick = () => {
+      if (index === item.correct) {
+        state.questionIndex++;
+        save();
+        renderQuestion();
+      } else {
+        document.getElementById("feedback").textContent =
+          "Nem ez a helyes válasz. Próbáld újra!";
+      }
+    };
+
+    answers.appendChild(button);
+  });
+}
+
+function openLetter() {
+  document.getElementById("letterText")
+    .classList.remove("hidden");
+}
+
+function startFinal() {
+  if (!state.finalEnd) {
+    state.finalEnd = Date.now() + YEAR;
+  }
+
+  setStage("final");
+}
+
+function checkCode() {
+  const code = document.getElementById("secretCode")
+    .value.trim();
+
+  if (code === "Daxtor443") {
+    setStage("finished");
+  } else {
+    document.getElementById("error").textContent =
+      "Hibás kód!";
+  }
+}
+
+function restartGame() {
+  state = initialState();
+  save();
+  render();
+}
+
+function tick() {
+  const now = Date.now();
+
+  if (state.stage === "first") {
+    if (now >= state.firstEnd) {
+      setStage("quiz");
+    } else {
+      document.getElementById("timer1").textContent =
+        formatTime(state.firstEnd - now);
+    }
+  }
+
+  if (state.stage === "second") {
+    if (now >= state.secondEnd) {
+      setStage("letter");
+    } else {
+      document.getElementById("timer2").textContent =
+        formatTime(state.secondEnd - now);
+    }
+  }
+
+  if (state.stage === "final") {
+    if (now >= state.finalEnd) {
+      setStage("finished");
+    } else {
+      document.getElementById("timer3").textContent =
+        formatTime(state.finalEnd - now);
+    }
+  }
+}
+
+render();
+tick();
+setInterval(tick, 1000);
+</script>
+
+</body>
+</html>
+
